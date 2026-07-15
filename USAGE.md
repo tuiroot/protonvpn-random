@@ -135,19 +135,19 @@ The waiting time between failed attempts increases automatically.
 Make the script executable:
 
 ```bash
-chmod +x protonvpn-random.sh
+chmod +x protonvpn-random
 ```
 
 Run it:
 
 ```bash
-./protonvpn-random.sh
+./protonvpn-random
 ```
 
 It can also be started with Bash:
 
 ```bash
-bash protonvpn-random.sh
+bash protonvpn-random
 ```
 
 The terminal shows the remaining time before the next connection change.
@@ -157,7 +157,7 @@ The terminal shows the remaining time before the next connection change.
 Copy the script to `/usr/local/bin`:
 
 ```bash
-sudo cp protonvpn-random.sh /usr/local/bin/protonvpn-randomizer
+sudo cp protonvpn-random /usr/local/bin/protonvpn-randomizer
 sudo chmod 755 /usr/local/bin/protonvpn-randomizer
 ```
 
