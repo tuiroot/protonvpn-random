@@ -33,9 +33,7 @@ NOTIFY_ASK_ONOFF="ON"
 PROTON_INFO_ONOFF="ON"
 START_MESSAGE_ONOFF="ON"
 
-#Allowed retries after first connection failure
 MAX_CON_FAILS=2
-#Seconds sleep after connection error * Connection fails 
 INCREASING_DELAY=10									
 
 ########################################################################
@@ -66,17 +64,19 @@ Press Ctrl+alt+c or close terminal to stop the protonvpn random script.
 Stopping proton-random does not disconnect the active VPN connection.
 
 Thank you for choosing proton-random.
+
 "
+TXT_BACKGROUND="$APPNAME will run in the background, you can close this terminal.
+To stop application type: 'kill -9 $PID' in any termnial.
+Stopping proton-random does not disconnect the active VPN connection.
+
+Thank you for choosing proton-random."
 
 #---------------Function background -----------------------------------#
 
 background(){
     "$0" >/dev/null & PID=$!
-    echo "$APPNAME will run in the background, you can close this terminal.
-To stop application type: 'kill -9 $PID' in any termnial.
-Stopping proton-random does not disconnect the active VPN connection.
-
-Thank you for choosing proton-random."
+    printf "%s\n" "$$TXT_BACKGROUND"
     disown $PID 2>/dev/null
     exit 0
 }
