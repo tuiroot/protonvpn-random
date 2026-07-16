@@ -64,10 +64,7 @@ Press Ctrl+alt+c or close terminal to stop the protonvpn random script.
 Stopping proton-random does not disconnect the active VPN connection.
 
 Thank you for choosing proton-random.
-
 "
-TXT_BACKGROUND=
-
 #---------------Function background -----------------------------------#
 
 background(){
