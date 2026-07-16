@@ -280,8 +280,8 @@ NotifyAsk(){
 
 MessageStart(){
 	if RunInTerminal; then
-		VpnInfo
-		OutH1 "$TXT_MESSAGE_START"
+		[[ "$PROTON_INFO_ONOFF" == "ON" ]] && VpnInfo
+		[[ "$START_MESSAGE_ONOFF" == "ON" ]] && OutH1 "$TXT_MESSAGE_START"
 	fi
 }
 		
