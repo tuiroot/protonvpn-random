@@ -68,6 +68,46 @@ Stopping proton-random does not disconnect the active VPN connection.
 Thank you for choosing proton-random.
 "
 
+#---------------Function background -----------------------------------#
+
+background(){
+    "$0" >/dev/null & PID=$!
+    echo "$APPNAME will run in the background, you can close this terminal.
+To stop application type: 'kill -9 $PID' in any termnial.
+Stopping proton-random does not disconnect the active VPN connection.
+
+Thank you for choosing proton-random."
+    disown $PID 2>/dev/null
+    exit 0
+}
+
+#---------------Function help -----------------------------------------#
+
+help(){
+    local help
+    read -r -d '' help << EOM
+Usage: $APPNAME [options]
+  -b               Start script and keep it running in the background even if terminal is closed
+  -h --help        Show this help snippet
+EOM
+    echo "$help"
+    exit
+}
+
+#---------------Parse command-line options-----------------------------#
+
+options=$(getopt -o hb --long help: -- "$@")
+[[ $? -eq 0 ]] || help
+eval set -- "$options"
+while true; do
+    case "$1" in
+        -h|--help) help; break;;
+        -b) background; shift;;
+        --) break;;
+        *) shift;;
+    esac
+done
+
 #------------ Error codes ---------------------------------------------#
 
 #10 = Missing Dependency
