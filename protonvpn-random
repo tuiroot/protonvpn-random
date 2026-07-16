@@ -6,30 +6,26 @@
 
 APPNAME="$(basename "$0" )"
 
-#Choose a main location
-MAIN_LOCATION="UK"
-PROBABILITY_MAIN_LOCATION=50					#0=Off 1-99=maybe 100=always
+MAIN_LOCATION="US"
+PROBABILITY_MAIN_LOCATION=0					
 
-#Add or delete countrys
-#You should not reuse MAIN_LOCATION 
 RANDOM_POOL=(
-"SI"
-"SO"
-"ZA"
-"KR"
-"SS"
-"ES"
-"LK"
+"Amsterdam"
+"US#1"
+"PL"
+"AT"
+"CH"
+"PL"
+"UK"
 )
 
-PROBABILITY_SECURECORE=50						#0=Off 1-99=maybe 100=on
-
 SWITCH_VPN_ONOFF="ON"
-SECONDS_SWITCH_VPN_MAX=7200
-SECONDS_SWITCH_VPN_MIN=3600
+SECONDS_SWITCH_VPN_MAX=10800
+SECONDS_SWITCH_VPN_MIN=600
 
- 
-NOTIFY_ALLOFF="NO" 							#use OFF to mute all NOTIFY_						
+PROBABILITY_SECURECORE=0
+						
+NOTIFY_ALLOFF="NO" 												
 NOTIFY_VPN_ERROR_ONOFF="ON"
 NOTIFY_VPN_OK_ONOFF="ON"
 NOTIFY_EXIT_ONOFF="ON"
@@ -37,8 +33,10 @@ NOTIFY_ASK_ONOFF="ON"
 PROTON_INFO_ONOFF="ON"
 START_MESSAGE_ONOFF="ON"
 
-#Allowed retries after the first connection failure
-MAX_CON_FAILS=3									
+#Allowed retries after first connection failure
+MAX_CON_FAILS=2
+#Seconds sleep after connection error * Connection fails 
+INCREASING_DELAY=10									
 
 ########################################################################
 #----------------------------------------------------------------------#
@@ -190,12 +188,36 @@ DepCheck(){
 }
 
 ValCountry(){
+	local -a country="$1"
+	[[ "$country" =~ ^[A-Z]{2}$ ]] || return 1
+}
+
+ValCity(){
+	local city="$1"
+	[[ "$city" =~ ^[a-zA-Z\ ]{3,25}$ ]] || return 1
+}
+
+ValServer(){
+	local server="$1"
+	[[ "$server" =~ ^[A-Z]{2}#[1-9][1-9]{0,2}$ ]] || return 1
+}
+
+
+ValPool(){
 	local -a pool=("$@")
 	local element
 	(("${#pool[@]}" > 0 )) || return 1
 	 
 	for element in "${pool[@]}"; do
-		[[ "$element" =~ ^[A-Z]{2}$ ]] || return 1
+		if ValCountry "$element"; then
+			continue
+		elif ValCity "$element"; then
+			continue
+		elif ValServer "$element"; then
+			continue
+		else
+			return 1
+		fi
 	done
 }
 
@@ -227,24 +249,24 @@ ValPercentage(){
 }
 
 ValConfig(){
-	if ! ValCountry "$MAIN_LOCATION"; then
+	if ! ValPool "$MAIN_LOCATION"; then
 		return 1
 	fi
 	
-	if ! ValCountry "${RANDOM_POOL[@]}"; then
+	if ! ValPool "${RANDOM_POOL[@]}"; then
 		return 1
 	fi
 	
 	if ! ValOnOff "$SWITCH_VPN_ONOFF" "$NOTIFY_ALLOFF" "$NOTIFY_VPN_ERROR_ONOFF" \
 	"$NOTIFY_VPN_OK_ONOFF" "$NOTIFY_EXIT_ONOFF" "$NOTIFY_ASK_ONOFF" "$PROTON_INFO_ONOFF" \
-	"$START_MESSAGE_ONOFF" ; then
+	"$START_MESSAGE_ONOFF"; then
 		return 1
 	fi
 	
 	
 	if ! ValInteger "$SECONDS_SWITCH_VPN_MAX" "$SECONDS_SWITCH_VPN_MIN" \
-	"$PROBABILITY_SECURECORE" "$PROBABILITY_MAIN_LOCATION" "$MAX_CON_FAILS"
-	then
+	"$PROBABILITY_SECURECORE" "$PROBABILITY_MAIN_LOCATION" "$MAX_CON_FAILS" \
+	"$INCREASING_DELAY"; then
 		return 1
 	fi
 	
@@ -287,35 +309,59 @@ MessageStart(){
 		
 		
 #----------------- Functions randomizing -------------------------------#
+ConnectionMode(){
+	local dst="$1"
+	if ValCountry "$dst"; then
+			printf "%s\n" "server"
+	elif ValCity "$dst"; then
+			printf "%s\n" "country"
+	elif ValServer "$dst"; then
+		printf "%s\n" "city"
+	fi
+}
+
+ProtonVpnConnect(){
+	local dst="$1"
+	local -a seccore=("$2")
+	if ValCountry "$dst"; then
+		protonvpn connect "${seccore[@]}" --country "$dst"  
+	elif ValCity "$dst"; then
+		protonvpn connect "${seccore[@]}" --city "$dst"
+	elif ValServer "$dst"; then
+		#no securecore !
+		protonvpn connect "$dst"
+	fi
+}
 
 RandomPercent(){
 		printf  "%s\n" "$(( RANDOM % 100 + 1 ))"
 	}
-	
+		
 RandomizeVpn(){
 	local r
 	local rr
-	local country
-	local -a securecore=()
+	local server
+	local securecore=""
 	
 	r="$( RandomPercent )"
+	
+	
 	if (( r <= PROBABILITY_MAIN_LOCATION )); then
-		country="$MAIN_LOCATION"
+		server="$MAIN_LOCATION"
 	else
 		r="$(( RANDOM % ${#RANDOM_POOL[@]} ))"
-		country="${RANDOM_POOL[$r]}"
+		server="${RANDOM_POOL[$r]}"
 	fi
 	
-	
-	
 	rr="$( RandomPercent )"
-	(( rr <= PROBABILITY_SECURECORE )) && securecore+=("--securecore")
+	(( rr <= PROBABILITY_SECURECORE )) && securecore="--securecore"
 	
-	if protonvpn connect "${securecore[@]}" --country "$country"; then
-		NotifyVpnOk "$country"
+	
+	if ProtonVpnConnect "$server" "$securecore"; then
+		NotifyVpnOk "$server"
 		return 0
 	else
-		NotifyVpnError "$country"
+		NotifyVpnError "$server" 
 		return 1
 	fi
 }
@@ -372,7 +418,6 @@ main(){
 	local count_fails=0
 	local wait_retry=1
 	
-	EnsureSingleInstance
 	
 	MessageStart
 	while true; do
@@ -384,7 +429,7 @@ main(){
 			count_fails="0"
 		else
 			count_fails="$(( count_fails + 1 ))"
-			wait_retry=$(( count_fails * 5 ))
+			wait_retry=$(( count_fails * INCREASING_DELAY ))
 			(( count_fails <= MAX_CON_FAILS )) || ExitHandler 1 "$TXT_CON_FAILED"
 			sleep "$wait_retry"
 			continue
@@ -397,11 +442,7 @@ main(){
 #----------------------------------------------------------------------#
 ValConfig || ExitHandler 11 "Well played... You made the config invalid"
 
-if [[ "$NOTIFY_ALLOFF" == "OFF" ]]; then
-	NOTIFY_VPN_ERROR_ONOFF="OFF"
-	NOTIFY_VPN_OK_ONOFF="OFF"
-	NOTIFY_EXIT_ONOFF="OFF"
-elif [[ "$NOTIFY_ALLOFF" == "ON" && \
+if  [[ "$NOTIFY_ALLOFF" == "ON" && \
 	"$NOTIFY_VPN_ERROR_ONOFF" == "OFF" && \
 	"$NOTIFY_VPN_OK_ONOFF" == "OFF" && \
 	"$NOTIFY_EXIT_ONOFF" == "OFF" && \
@@ -415,4 +456,5 @@ DepCheck "tput" || ExitHandler 10  "$TXT_REQUIRED_TPUT"
 DepCheck "awk" || ExitHandler 10 "$TXT_REQUIRED_AWK"
 DepCheck "protonvpn" || ExitHandler 10 "$TXT_REQUIRED_PROTON"
 
+EnsureSingleInstance
 main
