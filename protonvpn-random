@@ -34,8 +34,8 @@ NOTIFY_VPN_ERROR_ONOFF="ON"
 NOTIFY_VPN_OK_ONOFF="ON"
 NOTIFY_EXIT_ONOFF="ON"
 NOTIFY_ASK_ONOFF="ON" 
-
-
+PROTON_INFO_ONOFF="ON"
+START_MESSAGE_ONOFF="ON"
 
 #Allowed retries after the first connection failure
 MAX_CON_FAILS=3									
@@ -63,6 +63,13 @@ TXT_REQUIRED_AWK="awk is missing - try: sudo apt install mawk"
 TXT_ASK_KILLSWITCH_A="Proton Kill-Switch is off"
 TXT_ASK_KILLSWITCH_B="Disconnect, enable it, and reconnect?"
 
+TXT_MESSAGE_START="Proton VPN commands remain available while the script is running.
+Press Ctrl+C to stop the protonvpn random script.
+Stopping proton-random does not disconnect the active VPN connection.
+
+Thank you for choosing proton-random.
+"
+
 #------------ Error codes ---------------------------------------------#
 
 #10 = Missing Dependency
@@ -78,6 +85,11 @@ Out(){
 OutErr(){
 	local text="$1"
 	RunInTerminal && printf '\033[38;5;196m%s\033[0m\n' "$text"
+}
+
+OutH1() {
+	local text="$1"
+	RunInTerminal && printf '\n\033[38;5;38m%s\033[0m\n' "$text"
 }
 
 #---------------Function ----------------------------------------------#
@@ -113,6 +125,10 @@ KillSwitchOn(){
 
 DisconnectVpn(){
 	protonvpn disconnect
+}
+
+VpnInfo(){
+	[[ "$PROTON_INFO_ONOFF" == "ON" ]] && protonvpn
 }
 
 #-------------- Functions KillSwitchGuard -----------------------------#
@@ -220,7 +236,8 @@ ValConfig(){
 	fi
 	
 	if ! ValOnOff "$SWITCH_VPN_ONOFF" "$NOTIFY_ALLOFF" "$NOTIFY_VPN_ERROR_ONOFF" \
-	"$NOTIFY_VPN_OK_ONOFF" "$NOTIFY_EXIT_ONOFF" "$NOTIFY_ASK_ONOFF"; then
+	"$NOTIFY_VPN_OK_ONOFF" "$NOTIFY_EXIT_ONOFF" "$NOTIFY_ASK_ONOFF" "$PROTON_INFO_ONOFF" \
+	"$START_MESSAGE_ONOFF" ; then
 		return 1
 	fi
 	
@@ -261,6 +278,14 @@ NotifyAsk(){
 	[[ "$usrinp" == "y" ]] || return 1
 }
 
+MessageStart(){
+	if RunInTerminal; then
+		VpnInfo
+		OutH1 "$TXT_MESSAGE_START"
+	fi
+}
+		
+		
 #----------------- Functions randomizing -------------------------------#
 
 RandomPercent(){
@@ -349,6 +374,7 @@ main(){
 	
 	EnsureSingleInstance
 	
+	MessageStart
 	while true; do
 		
 		KillSwitchGuard
