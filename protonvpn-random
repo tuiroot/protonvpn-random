@@ -426,10 +426,8 @@ RandomSecureCore(){
 	
 	}
 			
-RandomizeVpn(){
+RandomServer(){
 	local r
-	local server
-	local securecore=""
 	
 	r="$( RandomPercent )"
 	
@@ -439,8 +437,8 @@ RandomizeVpn(){
 		r="$(( RANDOM % ${#RANDOM_POOL[@]} ))"
 		server="${RANDOM_POOL[$r]}"
 	fi
-	
-	ProtonVpnConnect "$server" "$( RandomSecureCore )"
+
+	printf "%s\n" "$server"
 }
 
 
@@ -454,11 +452,13 @@ RandomizeSwitchTime(){
 }
 
 RandomModeVpn(){
+	local server
 	while true; do
 		
 		KillSwitchGuard
 		
-		if  RandomizeVpn; then
+		server="$( RandomServer )"
+		if ProtonVpnConnect "$server" "$( RandomSecureCore )"; then
 			NotifyVpnOk "$server"
 			
 			[[ "$SWITCH_VPN_ONOFF" == "OFF" ]] && ExitHandler 0 "$TXT_SWITCH_OFF"
@@ -481,6 +481,8 @@ RouteModeVpn(){
 	local server
 	while true; do
 		for server in "${RANDOM_POOL[@]}"; do
+		
+			KillSwitchGuard
 			
 			if ProtonVpnConnect "$server" "$( RandomSecureCore )"; then
 				count_fails="0"
